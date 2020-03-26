@@ -10,7 +10,7 @@
 ```
 或参照 VUnit 项目说明。
 
-其次参(co)见(py) example/tests/adder.py，里面有详细使用方法的实例。
+其次参(co)见(py) [example/tests/adder.py](https://github.com/wwy9/vunit-py/blob/master/example/tests/adder.py)，里面有详细使用方法的实例。说实话看代码比看下面的字要快。
 
 ## 创建一个测试用例
 一个测试用例包括以下几个方面：模块、事件时钟和信号、测试。
@@ -75,6 +75,14 @@ t["out"] ** "ec" >> [2, 3, 5]
 字典表示方法尤其适用于输出端口，当只需要检测某一时刻的值时，使用字典比使用数组并且手写 `x` 要方便很多。
 
 某些可序列化的信号序列可以被表示为字符串。例子包括大部分的单 bit 串行接口。使用字符串表示方法时，端口宽度需要为 2 的幂次，字符串转化为 ASCII 码后从高到低依次展开。例如 `"\xab"` 对于一个宽度为 1 的端口等效为 `["1", "0", "1", "0", "1", "0", "1", "1"]`；对于一个宽度为 4 的端口等效为 `["1010", "1011"]`。使用字符串表示方法时，总位数一定是 8 的倍数，并且无法表示 `x` 和 `z`。
+
+## 信号与 python 类型的转换
+为了方便用 python 进行逻辑建模，所有的信号序列都是 `List[List[Value]]` 类型。在使用 python 建模时，可以直接操作 `Value` 枚举类型，或者转换为数组表达形式，例如
+```python
+input = [Value.valuesToInteger(i) for i in t["in"]._input]
+output = [Value.valuesToString(o) for o in t["out"]._output]
+```
+其中 `Value.valuesToString()` 将一个信号转换为字符串；`Value.valuesToInteger()` 将一个仅包含 0 和 1 的信号转换为整数。
 
 # 自问自答
 0. 为什么要搞这么一个东西？仿真器不好用吗？

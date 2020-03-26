@@ -7,7 +7,7 @@ ROOT = os.path.dirname(EXAMPLE)
 
 # 这是 hack，不要这么用，请把 test.py 放到正确的地方
 sys.path = [ROOT] + sys.path
-from test import Test
+from test import Test, Value
 
 ###########
 # 开始一个简单的测试用例
@@ -34,18 +34,21 @@ t1.addEventClock("ec", 2)
 # 次数        0     1     2
 # 信号  0     0     1     1
 #      ^初始值
-t1["a"]**"ec" // 0 << [0, 1, 1, 0]
+a = [0, 1, 1, 0]
+t1["a"]**"ec" // 0 << a
 # 事件对应如下：
 # 时间 #0 #1 #2 #3 #4 #5 #6
 # 次数        0     1     2
 # 信号  X     1     1     0
 #      ^初始值
-t1["b"]**"ec" << [1, 1, 0, 0]
+b = [1, 1, 0, 0]
+t1["b"]**"ec" << b
 # 事件对应如下：
 # 时间 #0 #1 #2 #3 #4 #5 #6
 # 次数        0     1     2
 # 信号        X     1     1
-t1["sum"]**"ec" >> ["xx", 1, 2, 1, 0]
+# 虽然时序需要自己操心，但是逻辑可以用 python 直接写出来
+t1["sum"]**"ec" >> ["xx"] >> [ax + bx for ax, bx in zip(a, b)]
 # 测试用例到此结束
 ###########
 
@@ -76,6 +79,11 @@ t2["a"]**"ec" // 0 << {1: 1, 3: 0} << [1]
 # 端口设置可以拆开
 t2["b"]**"ec"
 t2["b"] << "\xdf"
-t2["sum"]**"ec" >> ["xx", 0, 2, 0, 1] >> [2] * 5
+# 可以把花式定义的输入信号变成数字
+a = [Value.valuesToInteger(i) for i in t2["a"]._input]
+b = [Value.valuesToInteger(i) for i in t2["b"]._input]
+sum = [ax + bx for ax, bx in zip(a, b)]
+sum[0] = sum[2] = 0
+t2["sum"]**"ec" >> ["xx"] >> sum
 
 Test.run([t1, t2], [EXAMPLE])

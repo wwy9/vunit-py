@@ -70,6 +70,15 @@ class Value(Enum):
         return "".join([str(v) for v in value])
 
     @staticmethod
+    def valuesToInteger(value: List["Value"]) -> int:
+        assert all([v == Value.LO or v == Value.HI for v in value])
+        res = 0
+        for v in value:
+            res <<= 1
+            res |= 1 if v == Value.HI else 0
+        return res
+
+    @staticmethod
     def fromChar(c: str) -> "Value":
         if c == "0":
             return Value.LO
