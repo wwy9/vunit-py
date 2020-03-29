@@ -209,6 +209,8 @@ class Test(object):
     __inPorts: Dict[str, Port]
     __outPorts: Dict[str, Port]
     __parameters: Dict[str, str]
+    # [port]
+    __statics: List[str]
     # {clk: [port]}
     __inputs: Dict[str, List[str]]
     # {clk: [port]}
@@ -234,6 +236,7 @@ class Test(object):
         self.__inPorts = {}
         self.__outPorts = {}
         self.__parameters = {k: str(v) for k, v in parameters.items()}
+        self.__statics = []
         self.__inputs = {}
         self.__outputs = {}
         self.__inLens = {}
@@ -285,6 +288,8 @@ class Test(object):
                 self.__inputs[port._clk].append(name)
                 self.__inLens[port._clk] = max(self.__inLens.get(port._clk, 0),
                                                len(port._input))
+            elif hasattr(port, "_initValue") and port._initValue:
+                self.__statics.append(name)
 
         for name, port in self.__outPorts.items():
             assert not hasattr(port, "_input")
@@ -360,6 +365,15 @@ class Test(object):
         param_assign = ""
         data_write = ""
         maxTs = 0
+
+        for p in self.__statics:
+            port = self.__inPorts[p]
+            input_name = "AUTOGEN_static_{}".format(p)
+            reg_define += "wire[0:{}] {} = {}'b{};\n".format(
+                port.width - 1, input_name, port.width,
+                Value.valuesToString(port._initValue))
+            port_assign += "    .{}({}[{}:{}]),\n".format(
+                p, input_name, 0, port.width - 1)
 
         for clk, c in self.__clocks.items():
             cnt_name = "AUTOGEN_{}_cnt".format(clk)
@@ -503,12 +517,16 @@ endmodule
             f.write(sv)
 
     @staticmethod
-    def run(tests: List["Test"], include_dirs: List[str] = []) -> None:
+    def run(tests: List["Test"],
+            include_dirs: List[str] = [],
+            external_libraries: Dict[str, str] = {}) -> None:
         s = set()
         for t in tests:
             assert (t.moduleName, t.testName) not in s
             s.add((t.moduleName, t.testName))
         vu = VUnit.from_argv()
+        for name, path in external_libraries.items():
+            vu.add_external_library(name, path)
         lib = vu.add_library("lib")
         for t in tests:
             t.gen()
