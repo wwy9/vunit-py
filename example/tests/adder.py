@@ -5,9 +5,7 @@ TESTS = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE = os.path.dirname(TESTS)
 ROOT = os.path.dirname(EXAMPLE)
 
-# 这是 hack，不要这么用，请把 test.py 放到正确的地方
-sys.path = [ROOT] + sys.path
-from test import Test, Value
+from vunit_py import Test, Value
 
 ###########
 # 开始一个简单的测试用例
