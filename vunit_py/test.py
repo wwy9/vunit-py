@@ -329,13 +329,26 @@ class Test(object):
                 if v == Value.X:
                     continue
                 if value[i] != v:
-                    print("{} @{} ({}x): expected\n>> {}\ngot\n>> {}".format(
+                    print("{} @{} ({}x): expected".format(
                         p,
                         self.__clocks[clk].ts(t),
                         t,
-                        Value.valuesToString(expected),
-                        Value.valuesToString(value),
                     ))
+                    try:
+                        print(">> {}'d{} ({}'h{:x}) ({})".format(
+                            len(expected), Value.valuesToInteger(expected),
+                            len(expected), Value.valuesToInteger(expected),
+                            Value.valuesToString(expected)))
+                    except Exception:
+                        print(">> {}".format(Value.valuesToString(expected)))
+                    print("got")
+                    try:
+                        print(">> {}'d{} ({}'h{:x}) ({})".format(
+                            len(value), Value.valuesToInteger(value),
+                            len(value), Value.valuesToInteger(value),
+                            Value.valuesToString(value)))
+                    except Exception:
+                        print(">> {}".format(Value.valuesToString(value)))
                     return False
             return True
 
