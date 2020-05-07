@@ -10,7 +10,8 @@ class EventClock(object):
     _offset: int
 
     def __init__(self, steps: List[int], offset: int):
-        assert all([s > 0 for s in steps])
+        assert all([isinstance(s, int) and s > 0
+                    for s in steps]), "事件时钟步长不是正整数"
         self._steps = steps
         if offset >= 0:
             self._offset = offset
@@ -71,7 +72,8 @@ class Value(Enum):
 
     @staticmethod
     def valuesToInteger(value: List["Value"]) -> int:
-        assert all([v == Value.LO or v == Value.HI for v in value])
+        assert all([v == Value.LO or v == Value.HI
+                    for v in value]), "包含 x 或 z 的值无法转换为整数"
         res = 0
         for v in value:
             res <<= 1
@@ -88,7 +90,7 @@ class Value(Enum):
             return Value.X
         elif c == "z" or c == "Z":
             return Value.Z
-        assert False
+        assert False, "值包含非法字符：{}".format(c)
 
     @staticmethod
     def valuesFromInt(v: int, width: int) -> List["Value"]:
@@ -104,9 +106,12 @@ class Value(Enum):
     @staticmethod
     def valuesFromAny(input: Union[int, str], width: int) -> List["Value"]:
         if isinstance(input, str):
-            assert len(input) == width
+            assert len(input) == width, "值的宽度不匹配：{} != {}".format(
+                len(input), width)
             return [Value.fromChar(c) for c in input]
-        assert input >= 0 and input < (1 << width)
+        assert input >= 0 and input < (
+            1 << width), "不支持负数值" if input < 0 else "值宽度太大：{} > 2^{}".format(
+                input, width)
         return Value.valuesFromInt(input, width)
 
     @staticmethod
@@ -127,7 +132,7 @@ class Port(object):
     __parent: "Test"
 
     def __init__(self, portType: PortType, width: int, parent: "Test"):
-        assert width > 0
+        assert width > 0, "端口宽度不为正：{}".format(width)
         self.portType = portType
         self.width = width
         self.__parent = parent
@@ -137,7 +142,7 @@ class Port(object):
             self._output = []
 
     def __pow__(self, clk: str) -> "Port":
-        assert self.__parent.hasClock(clk)
+        assert self.__parent.hasClock(clk), "事件时钟不存在：{}".format(clk)
         self._clk = clk
         return self
 
@@ -149,22 +154,31 @@ class Port(object):
             ]
 
         if isinstance(input, str):
-            assert (self.width & (self.width - 1)) == 0
+            assert (self.width & (self.width - 1)
+                    ) == 0, "使用字符串形式表达信号序列时，端口宽度不为 2 的幂次：{}".format(self.width)
             if self.width > 8:
-                assert len(input) % (self.width / 8) == 0
+                assert len(input) % (
+                    self.width /
+                    8) == 0, "使用字符串形式表达信号序列时，序列长度不是端口宽度的倍数：{} | {}".format(
+                        len(input) * 8, self.width)
             return reshape(Value.valuesFromStr(input))
         elif isinstance(input, dict):
             vs = sorted([(t, Value.valuesFromAny(x, self.width))
                          for t, x in input.items()],
                         key=lambda x: x[0])
             if self.portType == PortType.OUT:
-                assert vs[0][0] >= len(self._output)
+                assert vs[0][0] >= len(
+                    self._output
+                ), "使用字典形式表达信号序列时，指定的时间小于当前序列长度：{} < {}".format(
+                    vs[0][0], len(self._output))
                 value = [[Value.X] * self.width
                          ] * (vs[-1][0] + 1 - len(self._output))
                 for t, v in vs:
                     value[t - len(self._output)] = v
             else:
-                assert vs[0][0] >= len(self._input)
+                assert vs[0][0] >= len(
+                    self._input), "使用字典形式表达信号序列时，指定的时间小于当前序列长度：{} < {}".format(
+                        vs[0][0], len(self._output))
                 lastT = len(self._input) - 1
                 lastV = self._input[
                     -1] if self._input else self._initValue if hasattr(
@@ -181,19 +195,18 @@ class Port(object):
             return [Value.valuesFromAny(x, self.width) for x in input]
 
     def __floordiv__(self, input: Union[int, str]) -> "Port":
-        assert self.portType == PortType.IN
-        assert not self._input
+        assert self.portType == PortType.IN, "输出端口不可定义初始值"
+        assert not self._input, "定义输入序列后，不可定义初始值"
         self._initValue = Value.valuesFromAny(input, self.width)
-        assert len(self._initValue) == self.width
         return self
 
     def __lshift__(self, input: SignalDef) -> "Port":
-        assert self.portType == PortType.IN
+        assert self.portType == PortType.IN, "输出端口不可定义输入（输出定义方式为 >>）"
         self._input += self.normalize(input)
         return self
 
     def __rshift__(self, output: SignalDef) -> "Port":
-        assert self.portType == PortType.OUT
+        assert self.portType == PortType.OUT, "输入端口不可定义输出（输入定义方式为 <<）"
         self._output += self.normalize(output)
         return self
 
@@ -249,26 +262,26 @@ class Test(object):
 
         for pd in in_ports:
             port, width = extract(pd)
-            assert port not in self.__inPorts
+            assert port not in self.__inPorts, "端口 {} 已定义".format(port)
             self.__inPorts[port] = Port(PortType.IN, width, self)
 
         for pd in out_ports:
             port, width = extract(pd)
-            assert port not in self.__inPorts
-            assert port not in self.__outPorts
+            assert port not in self.__inPorts, "端口 {} 已定义".format(port)
+            assert port not in self.__outPorts, "端口 {} 已定义".format(port)
             self.__outPorts[port] = Port(PortType.OUT, width, self)
 
     def __getitem__(self, port: str) -> Port:
         if port in self.__inPorts:
             return self.__inPorts[port]
-        assert port in self.__outPorts
+        assert port in self.__outPorts, "端口 {} 未定义".format(port)
         return self.__outPorts[port]
 
     def addEventClock(self,
                       clk: str,
                       steps: Union[int, List[int]],
                       offset: int = 0) -> None:
-        assert clk not in self.__clocks
+        assert clk not in self.__clocks, "事件时钟 {} 已定义".format(clk)
         if isinstance(steps, list):
             self.__clocks[clk] = EventClock(steps, offset)
         else:
@@ -279,10 +292,11 @@ class Test(object):
 
     def gen(self) -> None:
         for name, port in self.__inPorts.items():
-            assert not hasattr(port, "_output")
             if hasattr(port, "_input") and port._input:
-                assert hasattr(port, "_clk")
-                assert port._clk in self.__clocks
+                assert hasattr(
+                    port, "_clk"), "端口 {} 定义了输入序列，但是未依附于任何事件时钟".format(name)
+                assert port._clk in self.__clocks, \
+                    "端口 {} 所依附的事件时钟不存在：{}".format(name, port._clk)
                 if port._clk not in self.__inputs:
                     self.__inputs[port._clk] = []
                 self.__inputs[port._clk].append(name)
@@ -292,10 +306,11 @@ class Test(object):
                 self.__statics.append(name)
 
         for name, port in self.__outPorts.items():
-            assert not hasattr(port, "_input")
             if hasattr(port, "_output") and port._output:
-                assert hasattr(port, "_clk")
-                assert port._clk in self.__clocks
+                assert hasattr(
+                    port, "_clk"), "端口 {} 定义了输出序列，但是未依附于任何事件时钟".format(name)
+                assert port._clk in self.__clocks, \
+                    "端口 {} 所依附的事件时钟不存在：{}".format(name, port._clk)
                 if port._clk not in self.__outputs:
                     self.__outputs[port._clk] = []
                 self.__outputs[port._clk].append(name)
@@ -358,7 +373,7 @@ class Test(object):
                 lines = f.readlines()
                 values = [[Value.fromChar(c) for c in l.strip()] for l in lines
                           if l[0] != "/"]
-            assert len(values) >= self.__outLens[clk]
+            assert len(values) >= self.__outLens[clk], "文件有多余内容"
             for t in range(self.__outLens[clk]):
                 start = 0
                 for p in ports:
@@ -450,7 +465,7 @@ class Test(object):
                 step_action += "        end\n"
                 maxTs = max(maxTs, c.ts(duration))
 
-            assert step_action
+            assert step_action, "没有任何端口依附于事件时钟 {}，请检查代码".format(clk)
             step_action += "        {0} = {0} + 1;\n".format(cnt_name)
 
             d = duration
@@ -531,19 +546,28 @@ endmodule
 
     @staticmethod
     def run(tests: List["Test"],
-            dependencies: List[str] = [],
+            dependencies: List[Union[str, Tuple[str, Dict[str, str]]]] = [],
             include_dirs: List[str] = [],
             external_libraries: Dict[str, str] = {}) -> None:
         s = set()
         for t in tests:
-            assert (t.moduleName, t.testName) not in s
+            assert (t.moduleName, t.testName) not in s, "模块 {} 已有测试 {}".format(
+                t.moduleName, t.testName)
             s.add((t.moduleName, t.testName))
         vu = VUnit.from_argv()
         for name, path in external_libraries.items():
             vu.add_external_library(name, path)
         dep = vu.add_library("dep")
         for d in dependencies:
-            dep.add_source_file(d, include_dirs=include_dirs, no_parse=True)
+            if isinstance(d, str):
+                dep.add_source_file(d,
+                                    include_dirs=include_dirs,
+                                    no_parse=True)
+            else:
+                dep.add_source_file(d[0],
+                                    include_dirs=include_dirs,
+                                    no_parse=True,
+                                    defines=d[1])
         lib = vu.add_library("lib")
         for t in tests:
             t.gen()
