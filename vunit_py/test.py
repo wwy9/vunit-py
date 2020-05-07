@@ -484,8 +484,8 @@ class Test(object):
         for k, v in self.__parameters.items():
             param_assign += "    .{}({}),\n".format(k, v)
 
-        sv = """`include "vunit_defines.svh"
-`include "{module}.sv"
+        sv = """`timescale 1ns/100ps
+`include "vunit_defines.svh"
 
 module tb_{module}_{test};
 
@@ -531,6 +531,7 @@ endmodule
 
     @staticmethod
     def run(tests: List["Test"],
+            dependencies: List[str] = [],
             include_dirs: List[str] = [],
             external_libraries: Dict[str, str] = {}) -> None:
         s = set()
@@ -540,12 +541,15 @@ endmodule
         vu = VUnit.from_argv()
         for name, path in external_libraries.items():
             vu.add_external_library(name, path)
+        dep = vu.add_library("dep")
+        for d in dependencies:
+            dep.add_source_file(d, include_dirs=include_dirs, no_parse=True)
         lib = vu.add_library("lib")
         for t in tests:
             t.gen()
             t.write()
             t.dump()
-            lib.add_source_files(t.prefix() + ".sv", include_dirs=include_dirs)
+            lib.add_source_file(t.prefix() + ".sv", include_dirs=include_dirs)
         for t in tests:
             lib.test_bench("tb_" + t.moduleName + "_" +
                            t.testName).set_post_check(t.check)
