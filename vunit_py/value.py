@@ -88,15 +88,15 @@ class Value(object):
         return Value([Logic.fromChar(c) for c in s])
 
     @staticmethod
-    def fromCompact(s: str) -> "Value":
-        return Value([v for c in s for v in Value.fromInt(ord(c), 8)])
+    def fromBytes(s: bytes, width: int) -> "Value":
+        assert len(s) * 8 == width, "值的宽度不匹配：{} != {}".format(
+            len(s) * 8, width)
+        return Value([v for c in s for v in Value.fromInt(c, 8)])
 
     @staticmethod
-    def fromAny(input: Union[int, str], width: int) -> "Value":
+    def fromAny(input: Union[int, str, bytes], width: int) -> "Value":
         if isinstance(input, str):
             return Value.fromStr(input, width)
+        if isinstance(input, bytes):
+            return Value.fromBytes(input, width)
         return Value.fromInt(input, width)
-
-    @staticmethod
-    def hex2bin(s: str) -> str:
-        return str(Value.fromStr(s))

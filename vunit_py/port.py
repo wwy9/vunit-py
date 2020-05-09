@@ -10,7 +10,8 @@ class PortType(Enum):
     OUT = 2
 
 
-SignalDef = Union[List[Union[int, str]], Dict[int, Union[int, str]], str]
+SignalDef = Union[List[Union[int, str, bytes]], Dict[int, Union[int, str,
+                                                                bytes]], bytes]
 
 
 class EventClockContainerProtocol(Protocol):
@@ -45,15 +46,17 @@ class Port(object):
         return self
 
     def normalize(self, input: SignalDef) -> List[Value]:
-        if isinstance(input, str):
-            assert (self.width & (self.width - 1)
-                    ) == 0, "使用字符串形式表达信号序列时，端口宽度不为 2 的幂次：{}".format(self.width)
+        if isinstance(input, bytes):
+            assert (
+                self.width &
+                (self.width - 1)) == 0, "使用字节形式表达信号序列时，端口宽度不为 2 的幂次：{}".format(
+                    self.width)
             if self.width > 8:
                 assert len(input) % (
                     self.width /
-                    8) == 0, "使用字符串形式表达信号序列时，序列长度不是端口宽度的倍数：{} | {}".format(
+                    8) == 0, "使用字节形式表达信号序列时，序列长度不是端口宽度的倍数：{} | {}".format(
                         len(input) * 8, self.width)
-            return Value.fromCompact(input).slice(self.width)
+            return Value.fromBytes(input, len(input) * 8).slice(self.width)
         elif isinstance(input, dict):
             vs = sorted([(t, Value.fromAny(x, self.width))
                          for t, x in input.items()],
@@ -86,7 +89,7 @@ class Port(object):
         else:
             return [Value.fromAny(x, self.width) for x in input]
 
-    def __floordiv__(self, input: Union[int, str]) -> "Port":
+    def __floordiv__(self, input: Union[int, str, bytes]) -> "Port":
         assert self.portType == PortType.IN, "输出端口不可定义初始值"
         assert not self._input, "定义输入序列后，不可定义初始值"
         self._initValue = Value.fromAny(input, self.width)

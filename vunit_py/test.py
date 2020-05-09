@@ -15,8 +15,8 @@ class Test(EventClockContainerProtocol):
     testName: str
     __path: str
     __clocks: Dict[str, EventClock]
-    __inPorts: Dict[str, Port]
-    __outPorts: Dict[str, Port]
+    _inPorts: Dict[str, Port]
+    _outPorts: Dict[str, Port]
     __parameters: Dict[str, str]
     # [port]
     __statics: List[str]
@@ -42,8 +42,8 @@ class Test(EventClockContainerProtocol):
         self.testName = test_name
         self.__path = os.path.abspath(output_path)
         self.__clocks = {}
-        self.__inPorts = {}
-        self.__outPorts = {}
+        self._inPorts = {}
+        self._outPorts = {}
         self.__parameters = {k: str(v) for k, v in parameters.items()}
         self.__statics = []
         self.__inputs = {}
@@ -58,20 +58,20 @@ class Test(EventClockContainerProtocol):
 
         for pd in in_ports:
             port, width = extract(pd)
-            assert port not in self.__inPorts, "端口 {} 已定义".format(port)
-            self.__inPorts[port] = Port(PortType.IN, width, self)
+            assert port not in self._inPorts, "端口 {} 已定义".format(port)
+            self._inPorts[port] = Port(PortType.IN, width, self)
 
         for pd in out_ports:
             port, width = extract(pd)
-            assert port not in self.__inPorts, "端口 {} 已定义".format(port)
-            assert port not in self.__outPorts, "端口 {} 已定义".format(port)
-            self.__outPorts[port] = Port(PortType.OUT, width, self)
+            assert port not in self._inPorts, "端口 {} 已定义".format(port)
+            assert port not in self._outPorts, "端口 {} 已定义".format(port)
+            self._outPorts[port] = Port(PortType.OUT, width, self)
 
     def __getitem__(self, port: str) -> Port:
-        if port in self.__inPorts:
-            return self.__inPorts[port]
-        assert port in self.__outPorts, "端口 {} 未定义".format(port)
-        return self.__outPorts[port]
+        if port in self._inPorts:
+            return self._inPorts[port]
+        assert port in self._outPorts, "端口 {} 未定义".format(port)
+        return self._outPorts[port]
 
     def addEventClock(self,
                       clk: str,
@@ -87,7 +87,7 @@ class Test(EventClockContainerProtocol):
         return clk in self.__clocks
 
     def gen(self) -> None:
-        for name, port in self.__inPorts.items():
+        for name, port in self._inPorts.items():
             if hasattr(port, "_input") and port._input:
                 assert hasattr(
                     port, "_clk"), "端口 {} 定义了输入序列，但是未依附于任何事件时钟".format(name)
@@ -101,7 +101,7 @@ class Test(EventClockContainerProtocol):
             elif hasattr(port, "_initValue") and port._initValue:
                 self.__statics.append(name)
 
-        for name, port in self.__outPorts.items():
+        for name, port in self._outPorts.items():
             if hasattr(port, "_output") and port._output:
                 assert hasattr(
                     port, "_clk"), "端口 {} 定义了输出序列，但是未依附于任何事件时钟".format(name)
@@ -125,7 +125,7 @@ class Test(EventClockContainerProtocol):
             with open(self.prefix() + "_" + clk + ".in", "w") as f:
                 for t in range(self.__inLens[clk]):
                     for p in ports:
-                        port = self.__inPorts[p]
+                        port = self._inPorts[p]
                         if t < len(port._input):
                             f.write(str(port._input[t]))
                         else:
@@ -166,7 +166,7 @@ class Test(EventClockContainerProtocol):
         ret = True
         for clk, ports in self.__outputs.items():
             values = []
-            width = sum([self.__outPorts[p].width for p in ports])
+            width = sum([self._outPorts[p].width for p in ports])
             with open(self.prefix() + "_" + clk + ".out", "r") as f:
                 lines = f.readlines()
                 values = [
@@ -177,7 +177,7 @@ class Test(EventClockContainerProtocol):
             for t in range(self.__outLens[clk]):
                 start = 0
                 for p in ports:
-                    port = self.__outPorts[p]
+                    port = self._outPorts[p]
                     if t < len(port._output):
                         if not checkEq(p, values[t][start:start + port.width],
                                        port._output[t]):
@@ -195,7 +195,7 @@ class Test(EventClockContainerProtocol):
         maxTs = 0
 
         for p in self.__statics:
-            port = self.__inPorts[p]
+            port = self._inPorts[p]
             input_name = "AUTOGEN_static_{}".format(p)
             reg_define += "wire[0:{}] {} = {}'b{};\n".format(
                 port.width - 1, input_name, port.width, str(port._initValue))
@@ -220,7 +220,7 @@ class Test(EventClockContainerProtocol):
                 start = 0
                 initValueStr = ""
                 for p in self.__inputs[clk]:
-                    port = self.__inPorts[p]
+                    port = self._inPorts[p]
                     port_assign += "    .{}({}[{}:{}]),\n".format(
                         p, input_name, start, start + port.width - 1)
                     if hasattr(port, "_initValue") and port._initValue:
@@ -248,7 +248,7 @@ class Test(EventClockContainerProtocol):
                 duration = self.__outLens[clk]
                 start = 0
                 for p in self.__outputs[clk]:
-                    port = self.__outPorts[p]
+                    port = self._outPorts[p]
                     port_assign += "    .{}({}[{}:{}]),\n".format(
                         p, output_name, start, start + port.width - 1)
                     start += port.width
