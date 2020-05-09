@@ -1,1 +1,2 @@
-from .test import Test, Value
+from .value import Value
+from .test import Test

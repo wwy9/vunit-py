@@ -1,220 +1,16 @@
 from typing import Dict, List, Tuple, Union
-from enum import Enum
 import os.path
 
 from vunit.verilog import VUnit
 
-
-class EventClock(object):
-    _steps: List[int]
-    _offset: int
-
-    def __init__(self, steps: List[int], offset: int):
-        assert all([isinstance(s, int) and s > 0
-                    for s in steps]), "事件时钟步长不是正整数"
-        self._steps = steps
-        if offset >= 0:
-            self._offset = offset
-        else:
-            self._offset = offset % -sum(self._steps)
-
-    def prelude(self) -> List[int]:
-        if self._offset >= 0:
-            return []
-        steps = []
-        t = self._offset
-        for s in self._steps:
-            t += s
-            if t > 0:
-                steps.append(t)
-                t = 0
-        assert steps
-        return steps
-
-    def ts(self, t: int) -> int:
-        t += 1
-        if self._offset >= 0:
-            s = self._offset
-        else:
-            p = self.prelude()
-            if t <= len(p):
-                return sum(p[:t])
-            s = sum(p)
-            t -= len(p)
-        return s + t // len(self._steps) * sum(self._steps) + sum(
-            self._steps[:t % len(self._steps)])
-
-
-class PortType(Enum):
-    IN = 1
-    OUT = 2
-
-
-class Value(Enum):
-    LO = 0
-    HI = 1
-    X = 2
-    Z = 3
-
-    def __str__(self) -> str:
-        if self.value == 0:
-            return "0"
-        elif self.value == 1:
-            return "1"
-        elif self.value == 2:
-            return "x"
-        elif self.value == 3:
-            return "z"
-
-    @staticmethod
-    def valuesToString(value: List["Value"]) -> str:
-        return "".join([str(v) for v in value])
-
-    @staticmethod
-    def valuesToInteger(value: List["Value"]) -> int:
-        assert all([v == Value.LO or v == Value.HI
-                    for v in value]), "包含 x 或 z 的值无法转换为整数"
-        res = 0
-        for v in value:
-            res <<= 1
-            res |= 1 if v == Value.HI else 0
-        return res
-
-    @staticmethod
-    def fromChar(c: str) -> "Value":
-        if c == "0":
-            return Value.LO
-        elif c == "1":
-            return Value.HI
-        elif c == "x" or c == "X":
-            return Value.X
-        elif c == "z" or c == "Z":
-            return Value.Z
-        assert False, "值包含非法字符：{}".format(c)
-
-    @staticmethod
-    def valuesFromInt(v: int, width: int) -> List["Value"]:
-        return [
-            Value.HI if (v >> (width - 1 - i)) & 1 else Value.LO
-            for i in range(width)
-        ]
-
-    @staticmethod
-    def valuesFromStr(s: str) -> List["Value"]:
-        return [v for c in s for v in Value.valuesFromInt(ord(c), 8)]
-
-    @staticmethod
-    def valuesFromAny(input: Union[int, str], width: int) -> List["Value"]:
-        if isinstance(input, str):
-            assert len(input) == width, "值的宽度不匹配：{} != {}".format(
-                len(input), width)
-            return [Value.fromChar(c) for c in input]
-        assert input >= 0 and input < (
-            1 << width), "不支持负数值" if input < 0 else "值宽度太大：{} > 2^{}".format(
-                input, width)
-        return Value.valuesFromInt(input, width)
-
-    @staticmethod
-    def hex2bin(s: str) -> str:
-        return Value.valuesToString(Value.valuesFromStr(s))
-
-
-SignalDef = Union[List[Union[int, str]], Dict[int, Union[int, str]], str]
-
-
-class Port(object):
-    portType: PortType
-    width: int
-    _clk: str
-    _initValue: List[Value]
-    _input: List[List[Value]]
-    _output: List[List[Value]]
-    __parent: "Test"
-
-    def __init__(self, portType: PortType, width: int, parent: "Test"):
-        assert width > 0, "端口宽度不为正：{}".format(width)
-        self.portType = portType
-        self.width = width
-        self.__parent = parent
-        if portType == PortType.IN:
-            self._input = []
-        elif portType == PortType.OUT:
-            self._output = []
-
-    def __pow__(self, clk: str) -> "Port":
-        assert self.__parent.hasClock(clk), "事件时钟不存在：{}".format(clk)
-        self._clk = clk
-        return self
-
-    def normalize(self, input: SignalDef) -> List[List[Value]]:
-        def reshape(values: List[Value]) -> List[List[Value]]:
-            return [
-                values[i * self.width:(i + 1) * self.width]
-                for i in range(len(values) // self.width)
-            ]
-
-        if isinstance(input, str):
-            assert (self.width & (self.width - 1)
-                    ) == 0, "使用字符串形式表达信号序列时，端口宽度不为 2 的幂次：{}".format(self.width)
-            if self.width > 8:
-                assert len(input) % (
-                    self.width /
-                    8) == 0, "使用字符串形式表达信号序列时，序列长度不是端口宽度的倍数：{} | {}".format(
-                        len(input) * 8, self.width)
-            return reshape(Value.valuesFromStr(input))
-        elif isinstance(input, dict):
-            vs = sorted([(t, Value.valuesFromAny(x, self.width))
-                         for t, x in input.items()],
-                        key=lambda x: x[0])
-            if self.portType == PortType.OUT:
-                assert vs[0][0] >= len(
-                    self._output
-                ), "使用字典形式表达信号序列时，指定的时间小于当前序列长度：{} < {}".format(
-                    vs[0][0], len(self._output))
-                value = [[Value.X] * self.width
-                         ] * (vs[-1][0] + 1 - len(self._output))
-                for t, v in vs:
-                    value[t - len(self._output)] = v
-            else:
-                assert vs[0][0] >= len(
-                    self._input), "使用字典形式表达信号序列时，指定的时间小于当前序列长度：{} < {}".format(
-                        vs[0][0], len(self._output))
-                lastT = len(self._input) - 1
-                lastV = self._input[
-                    -1] if self._input else self._initValue if hasattr(
-                        self, "_initValue"
-                    ) and self._initValue else [Value.X] * self.width
-                value = []
-                for t, v in vs:
-                    value += [lastV] * (t - lastT - 1)
-                    value.append(v)
-                    lastT = t
-                    lastV = v
-            return value
-        else:
-            return [Value.valuesFromAny(x, self.width) for x in input]
-
-    def __floordiv__(self, input: Union[int, str]) -> "Port":
-        assert self.portType == PortType.IN, "输出端口不可定义初始值"
-        assert not self._input, "定义输入序列后，不可定义初始值"
-        self._initValue = Value.valuesFromAny(input, self.width)
-        return self
-
-    def __lshift__(self, input: SignalDef) -> "Port":
-        assert self.portType == PortType.IN, "输出端口不可定义输入（输出定义方式为 >>）"
-        self._input += self.normalize(input)
-        return self
-
-    def __rshift__(self, output: SignalDef) -> "Port":
-        assert self.portType == PortType.OUT, "输入端口不可定义输出（输入定义方式为 <<）"
-        self._output += self.normalize(output)
-        return self
-
+from .event_clock import EventClock
+from .value import Logic, Value
+from .port import Port, PortType, EventClockContainerProtocol
 
 PortDef = Union[str, Tuple[str, int]]
 
 
-class Test(object):
+class Test(EventClockContainerProtocol):
     moduleName: str
     testName: str
     __path: str
@@ -331,59 +127,63 @@ class Test(object):
                     for p in ports:
                         port = self.__inPorts[p]
                         if t < len(port._input):
-                            f.write(Value.valuesToString(port._input[t]))
+                            f.write(str(port._input[t]))
                         else:
-                            f.write(Value.valuesToString(port._input[-1]))
+                            f.write(str(port._input[-1]))
                         f.write("_")
                     f.write("\n")
         return True
 
+    # 此函数不能有类型，否则 VUnit 不工作
     def check(self):
-        def eq(value: List[Value], expected: List[Value]) -> bool:
+        def printDiff(value: Value, expected: Value) -> None:
+            print("{p} @{ts} ({t}x): expected".format(
+                p=p, ts=self.__clocks[clk].ts(t), t=t))
+            try:
+                print(">> {w}'d{v} ({w}'h{v:x}) ({w}'b{s})".format(
+                    w=len(expected), v=int(expected), s=str(expected)))
+            except Exception:
+                print(">> {w}'b{s}".format(w=len(expected), s=str(expected)))
+            print("got")
+            try:
+                print(">> {w}'d{v} ({w}'h{v:x}) ({w}'b{s})".format(
+                    w=len(value), v=int(value), s=str(value)))
+            except Exception:
+                print(">> {w}'b{s}".format(w=len(value), s=str(value)))
+
+        def checkEq(p: str, value: Value, expected: Value) -> bool:
+            if len(value) != len(expected):
+                printDiff(value, expected)
+                return False
             for i, v in enumerate(expected):
-                if v == Value.X:
+                if v == Logic.X:
                     continue
                 if value[i] != v:
-                    print("{} @{} ({}x): expected".format(
-                        p,
-                        self.__clocks[clk].ts(t),
-                        t,
-                    ))
-                    try:
-                        print(">> {}'d{} ({}'h{:x}) ({})".format(
-                            len(expected), Value.valuesToInteger(expected),
-                            len(expected), Value.valuesToInteger(expected),
-                            Value.valuesToString(expected)))
-                    except Exception:
-                        print(">> {}".format(Value.valuesToString(expected)))
-                    print("got")
-                    try:
-                        print(">> {}'d{} ({}'h{:x}) ({})".format(
-                            len(value), Value.valuesToInteger(value),
-                            len(value), Value.valuesToInteger(value),
-                            Value.valuesToString(value)))
-                    except Exception:
-                        print(">> {}".format(Value.valuesToString(value)))
+                    printDiff(value, expected)
                     return False
             return True
 
+        ret = True
         for clk, ports in self.__outputs.items():
             values = []
+            width = sum([self.__outPorts[p].width for p in ports])
             with open(self.prefix() + "_" + clk + ".out", "r") as f:
                 lines = f.readlines()
-                values = [[Value.fromChar(c) for c in l.strip()] for l in lines
-                          if l[0] != "/"]
-            assert len(values) >= self.__outLens[clk], "文件有多余内容"
+                values = [
+                    Value.fromStr(l.strip(), width) for l in lines
+                    if l[0] != "/"
+                ]
+            assert len(values) >= self.__outLens[clk], "文件长度不足"
             for t in range(self.__outLens[clk]):
                 start = 0
                 for p in ports:
                     port = self.__outPorts[p]
                     if t < len(port._output):
-                        if not eq(values[t][start:start + port.width],
-                                  port._output[t]):
-                            return False
+                        if not checkEq(p, values[t][start:start + port.width],
+                                       port._output[t]):
+                            ret = False
                     start += port.width
-        return True
+        return ret
 
     def write(self) -> None:
         reg_define = ""
@@ -398,8 +198,7 @@ class Test(object):
             port = self.__inPorts[p]
             input_name = "AUTOGEN_static_{}".format(p)
             reg_define += "wire[0:{}] {} = {}'b{};\n".format(
-                port.width - 1, input_name, port.width,
-                Value.valuesToString(port._initValue))
+                port.width - 1, input_name, port.width, str(port._initValue))
             port_assign += "    .{}({}[{}:{}]),\n".format(
                 p, input_name, 0, port.width - 1)
 
@@ -419,22 +218,22 @@ class Test(object):
                 assert clk in self.__inLens
                 duration = self.__inLens[clk]
                 start = 0
-                initValue = []
+                initValueStr = ""
                 for p in self.__inputs[clk]:
                     port = self.__inPorts[p]
                     port_assign += "    .{}({}[{}:{}]),\n".format(
                         p, input_name, start, start + port.width - 1)
                     if hasattr(port, "_initValue") and port._initValue:
-                        initValue += port._initValue
+                        initValueStr += str(port._initValue)
                     else:
-                        initValue += [Value.X] * port.width
+                        initValueStr += "x" * port.width
                     start += port.width
 
                 reg_define += "reg[0:{}] {};\n".format(start - 1, input_name)
                 reg_define += "reg[0:{}] {}[0:{}];\n".format(
                     start - 1, input_data_name, duration - 1)
-                reg_init += "  {} = {}'b{};\n".format(
-                    input_name, start, Value.valuesToString(initValue))
+                reg_init += "  {} = {}'b{};\n".format(input_name, start,
+                                                      initValueStr)
                 reg_init += "  $readmemb(\"{}\", {});\n".format(
                     self.prefix(True) + "_" + clk + ".in", input_data_name)
                 step_action += "        if ({} < {})\n".format(
