@@ -10,8 +10,8 @@ class PortType(Enum):
     OUT = 2
 
 
-SignalDef = Union[List[Union[int, str, bytes]], Dict[int, Union[int, str,
-                                                                bytes]], bytes]
+ValueDef = Union[Value, int, str, bytes]
+SignalDef = Union[List[ValueDef], Dict[int, ValueDef], bytes]
 
 
 class EventClockContainerProtocol(Protocol):
@@ -89,7 +89,7 @@ class Port(object):
         else:
             return [Value.fromAny(x, self.width) for x in input]
 
-    def __floordiv__(self, input: Union[int, str, bytes]) -> "Port":
+    def __floordiv__(self, input: ValueDef) -> "Port":
         assert self.portType == PortType.IN, "输出端口不可定义初始值"
         assert not self._input, "定义输入序列后，不可定义初始值"
         self._initValue = Value.fromAny(input, self.width)

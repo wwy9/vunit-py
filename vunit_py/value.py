@@ -60,6 +60,8 @@ class Value(object):
         return iter(self.value)
 
     def __getitem__(self, i: int) -> Logic:
+        if isinstance(i, slice):
+            return Value(self.value[i])
         return self.value[i]
 
     def slice(self, width: int) -> List["Value"]:
@@ -94,7 +96,11 @@ class Value(object):
         return Value([v for c in s for v in Value.fromInt(c, 8)])
 
     @staticmethod
-    def fromAny(input: Union[int, str, bytes], width: int) -> "Value":
+    def fromAny(input: Union["Value", int, str, bytes], width: int) -> "Value":
+        if isinstance(input, Value):
+            assert len(input) == width, "值的宽度不匹配：{} != {}".format(
+                len(input), width)
+            return input
         if isinstance(input, str):
             return Value.fromStr(input, width)
         if isinstance(input, bytes):

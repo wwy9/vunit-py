@@ -28,6 +28,7 @@ class Test(EventClockContainerProtocol):
     __inLens: Dict[str, int]
     # {clk : max_t}
     __outLens: Dict[str, int]
+    __reportAllErrors: bool
 
     def __init__(
         self,
@@ -37,6 +38,7 @@ class Test(EventClockContainerProtocol):
         in_ports: List[PortDef] = [],
         out_ports: List[PortDef] = [],
         parameters: Dict[str, Union[int, str]] = {},
+        report_all_errors: bool = False,
     ):
         self.moduleName = module_name
         self.testName = test_name
@@ -50,6 +52,7 @@ class Test(EventClockContainerProtocol):
         self.__outputs = {}
         self.__inLens = {}
         self.__outLens = {}
+        self.__reportAllErrors = report_all_errors
 
         def extract(pd: PortDef) -> Tuple[str, int]:
             if isinstance(pd, str):
@@ -136,34 +139,34 @@ class Test(EventClockContainerProtocol):
 
     # 此函数不能有类型，否则 VUnit 不工作
     def check(self):
-        def printDiff(value: Value, expected: Value) -> None:
-            print("{p} @{ts} ({t}x): expected".format(
-                p=p, ts=self.__clocks[clk].ts(t), t=t))
+        def diffMsg(p: str, t: int, ts: int, value: Value,
+                    expected: Value) -> str:
+            msg = "{p} @{ts} ({t}x) 期望值：\n".format(p=p, ts=ts, t=t)
             try:
-                print(">> {w}'d{v} ({w}'h{v:x}) ({w}'b{s})".format(
-                    w=len(expected), v=int(expected), s=str(expected)))
+                msg += ">> {w}'d{v} ({w}'h{v:x}) ({w}'b{s})\n".format(
+                    w=len(expected), v=int(expected), s=str(expected))
             except Exception:
-                print(">> {w}'b{s}".format(w=len(expected), s=str(expected)))
-            print("got")
+                msg += ">> {w}'b{s}\n".format(w=len(expected), s=str(expected))
+            msg += "实际值：\n"
             try:
-                print(">> {w}'d{v} ({w}'h{v:x}) ({w}'b{s})".format(
-                    w=len(value), v=int(value), s=str(value)))
+                msg += ">> {w}'d{v} ({w}'h{v:x}) ({w}'b{s})\n".format(
+                    w=len(value), v=int(value), s=str(value))
             except Exception:
-                print(">> {w}'b{s}".format(w=len(value), s=str(value)))
+                msg += ">> {w}'b{s}\n".format(w=len(value), s=str(value))
+            return msg
 
         def checkEq(p: str, value: Value, expected: Value) -> bool:
             if len(value) != len(expected):
-                printDiff(value, expected)
                 return False
             for i, v in enumerate(expected):
                 if v == Logic.X:
                     continue
                 if value[i] != v:
-                    printDiff(value, expected)
                     return False
             return True
 
         ret = True
+        msgs = {}
         for clk, ports in self.__outputs.items():
             values = []
             width = sum([self._outPorts[p].width for p in ports])
@@ -181,8 +184,23 @@ class Test(EventClockContainerProtocol):
                     if t < len(port._output):
                         if not checkEq(p, values[t][start:start + port.width],
                                        port._output[t]):
+                            ts = self.__clocks[clk].ts(t)
+                            if ts not in msgs:
+                                msgs[ts] = []
+                            msgs[ts].append(
+                                diffMsg(p, t, ts,
+                                        values[t][start:start + port.width],
+                                        port._output[t]))
                             ret = False
                     start += port.width
+        if self.__reportAllErrors:
+            for t, ms in sorted(msgs.items(), key=lambda x: x[0]):
+                for m in ms:
+                    print(m)
+        elif msgs:
+            ts = sorted(msgs)[0]
+            for m in msgs[ts]:
+                print(m)
         return ret
 
     def write(self) -> None:
@@ -344,10 +362,12 @@ endmodule
             f.write(sv)
 
     @staticmethod
-    def run(tests: List["Test"],
+    def run(
+            tests: List["Test"],
             dependencies: List[Union[str, Tuple[str, Dict[str, str]]]] = [],
             include_dirs: List[str] = [],
-            external_libraries: Dict[str, str] = {}) -> None:
+            external_libraries: Dict[str, str] = {},
+    ) -> None:
         s = set()
         for t in tests:
             assert (t.moduleName, t.testName) not in s, "模块 {} 已有测试 {}".format(
