@@ -52,6 +52,17 @@ class SignalHelper(object):
                     p, ts, str(self.__outPorts[p][ts])))
             self.__outPorts[p][ts] = Value.fromAny(v, w)
 
+    def fillOutput(self, port: str, setup_time: int) -> None:
+        assert setup_time > 0, "设置时间不是正整数：{}".format(setup_time)
+        assert port in self.__outPorts, "输出端口未定义：{}".format(port)
+        p = self.__outPorts[port]
+        tss = sorted(p)
+        lastTs = tss[0]
+        for ts in tss[1:]:
+            if ts > lastTs + setup_time:
+                p[ts - setup_time] = p[lastTs]
+            lastTs = ts
+
     def attach(self) -> None:
         for p, v in self.__initValues.items():
             self.__test[p] // v
