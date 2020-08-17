@@ -1,11 +1,8 @@
-import sys
 import os.path
+from vunit_py import Test, Value
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE = os.path.dirname(TESTS)
-ROOT = os.path.dirname(EXAMPLE)
-
-from vunit_py import Test, Value
 
 ###########
 # 开始一个简单的测试用例

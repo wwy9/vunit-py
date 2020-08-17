@@ -19,6 +19,9 @@ class Logic(Enum):
             return "z"
         assert False, "值非法：{}".format(self.value)
 
+    def __repr__(self) -> str:
+        return str(self)
+
     @staticmethod
     def fromChar(c: str) -> "Logic":
         if c == "0":
@@ -43,6 +46,9 @@ class Value(object):
 
     def __str__(self) -> str:
         return "".join([str(v) for v in self.value])
+
+    def __repr__(self) -> str:
+        return str(self)
 
     def __int__(self) -> int:
         assert all([v == Logic.LO or v == Logic.HI
@@ -74,6 +80,11 @@ class Value(object):
         ]
 
     @staticmethod
+    def fromBools(bs: List[bool], width: int) -> "Value":
+        assert len(bs) == width, "值的宽度不匹配：{} != {}".format(len(bs), width)
+        return Value([Logic.HI if b else Logic.LO for b in bs])
+
+    @staticmethod
     def fromInt(v: int, width: int) -> "Value":
         assert v >= 0, "不支持负数值"
         assert v < (1 << width), "值宽度太大：{} > 2^{}".format(v, width)
@@ -96,7 +107,7 @@ class Value(object):
         return Value([v for c in s for v in Value.fromInt(c, 8)])
 
     @staticmethod
-    def fromAny(input: Union["Value", int, str, bytes], width: int) -> "Value":
+    def fromAny(input: "ValueDef", width: int) -> "Value":
         if isinstance(input, Value):
             assert len(input) == width, "值的宽度不匹配：{} != {}".format(
                 len(input), width)
@@ -105,4 +116,9 @@ class Value(object):
             return Value.fromStr(input, width)
         if isinstance(input, bytes):
             return Value.fromBytes(input, width)
+        if isinstance(input, list):
+            return Value.fromBools(input, width)
         return Value.fromInt(input, width)
+
+
+ValueDef = Union[Value, int, str, bytes, List[bool]]
