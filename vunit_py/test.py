@@ -247,8 +247,8 @@ class Test(EventClockContainerProtocol):
                         initValueStr += "x" * port.width
                     start += port.width
 
-                reg_define += "reg[0:{}] {};\n".format(start - 1, input_name)
-                reg_define += "reg[0:{}] {}[0:{}];\n".format(
+                reg_define += "logic[0:{}] {};\n".format(start - 1, input_name)
+                reg_define += "logic[0:{}] {}[0:{}];\n".format(
                     start - 1, input_data_name, duration - 1)
                 reg_init += "  {} = {}'b{};\n".format(input_name, start,
                                                       initValueStr)
@@ -272,7 +272,7 @@ class Test(EventClockContainerProtocol):
                     start += port.width
 
                 reg_define += "wire[0:{}] {};\n".format(start - 1, output_name)
-                reg_define += "reg[0:{}] {}[0:{}];\n".format(
+                reg_define += "logic[0:{}] {}[0:{}];\n".format(
                     start - 1, output_data_name, duration - 1)
                 step_action += "        if ({} < {})\n".format(
                     cnt_name, duration)
@@ -309,8 +309,7 @@ class Test(EventClockContainerProtocol):
 
         for clk, ports in self.__outputs.items():
             data_name = "AUTOGEN_{}_output_data".format(clk)
-            data_write += "    #{} $writememb(\"{}\", {});\n".format(
-                maxTs + 1,
+            data_write += "    $writememb(\"{}\", {});\n".format(
                 self.prefix(True) + "_" + clk + ".out", data_name)
 
         for k, v in self.__parameters.items():
@@ -321,12 +320,17 @@ class Test(EventClockContainerProtocol):
 
 module tb_{module}_{test};
 
+logic AUTOGEN_TEST_DONE;
 {reg_define}
 
 initial
 begin
+  AUTOGEN_TEST_DONE = 1'b0;
 {reg_init}
   fork
+  begin
+    #{done_ts} AUTOGEN_TEST_DONE = 1'b1;
+  end
 {clk_gen}
   join
 end
@@ -344,6 +348,11 @@ end
 begin
   `TEST_CASE("{test}")
   begin
+    while(1) begin
+      #1 if (AUTOGEN_TEST_DONE) begin
+        break;
+      end
+    end
 {data_write}
   end
 end
@@ -352,6 +361,7 @@ endmodule
 """.format(module=self.moduleName,
            reg_define=reg_define[:-1],
            reg_init=reg_init[:-1],
+           done_ts=maxTs + 1,
            clk_gen=clk_gen[:-1],
            param_assign=param_assign[:-2],
            port_assign=port_assign[:-2],
