@@ -81,13 +81,22 @@ class Value(object):
 
     @staticmethod
     def fromBools(bs: List[bool], width: int) -> "Value":
+        assert width > 0, "宽度不是正整数"
         assert len(bs) == width, "值的宽度不匹配：{} != {}".format(len(bs), width)
         return Value([Logic.HI if b else Logic.LO for b in bs])
 
     @staticmethod
-    def fromInt(v: int, width: int) -> "Value":
-        assert v >= 0, "不支持负数值"
-        assert v < (1 << width), "值宽度太大：{} > 2^{}".format(v, width)
+    def fromInt(v: int, width: int, signed: bool) -> "Value":
+        assert width > 0, "宽度不是正整数"
+        if signed:
+            assert width > 1, "有符号整数宽度小于 2"
+            lim = 1 << (width - 1)
+            assert v >= -lim, "有符号值宽度太大：{} < 2^{}".format(v, width - 1)
+            assert v < lim, "有符号值宽度太大：{} >= 2^{}".format(v, width - 1)
+            v = v % (1 << width)
+        else:
+            assert v >= 0, "不支持负数值"
+            assert v < (1 << width), "值宽度太大：{} >= 2^{}".format(v, width)
         return Value([
             Logic.HI if (v >> (width - 1 - i)) & 1 else Logic.LO
             for i in range(width)
@@ -95,6 +104,7 @@ class Value(object):
 
     @staticmethod
     def fromStr(s: str, width: int) -> "Value":
+        assert width > 0, "宽度不是正整数"
         if s.lower() == "x":
             return Value([Logic.X] * width)
         assert len(s) == width, "值的宽度不匹配：{} != {}".format(len(s), width)
@@ -102,12 +112,13 @@ class Value(object):
 
     @staticmethod
     def fromBytes(s: bytes, width: int) -> "Value":
+        assert width > 0, "宽度不是正整数"
         assert len(s) * 8 == width, "值的宽度不匹配：{} != {}".format(
             len(s) * 8, width)
-        return Value([v for c in s for v in Value.fromInt(c, 8)])
+        return Value([v for c in s for v in Value.fromInt(c, 8, False)])
 
     @staticmethod
-    def fromAny(input: "ValueDef", width: int) -> "Value":
+    def fromAny(input: "ValueDef", width: int, signed: bool) -> "Value":
         if isinstance(input, Value):
             assert len(input) == width, "值的宽度不匹配：{} != {}".format(
                 len(input), width)
@@ -118,7 +129,7 @@ class Value(object):
             return Value.fromBytes(input, width)
         if isinstance(input, list):
             return Value.fromBools(input, width)
-        return Value.fromInt(input, width)
+        return Value.fromInt(input, width, signed)
 
 
 ValueDef = Union[Value, int, str, bytes, List[bool]]

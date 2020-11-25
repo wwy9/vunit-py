@@ -62,13 +62,23 @@ class Test(EventClockContainerProtocol):
         for pd in in_ports:
             port, width = extract(pd)
             assert port not in self._inPorts, "端口 {} 已定义".format(port)
-            self._inPorts[port] = Port(PortType.IN, width, self)
+            if width >= 0:
+                assert width > 0, "端口 {} 宽度为 0".format(port)
+                self._inPorts[port] = Port(PortType.IN, width, False, self)
+            else:
+                assert width < -1, "端口 {} 宽度为 1，无法定义有符号整数".format(port)
+                self._inPorts[port] = Port(PortType.IN, -width, True, self)
 
         for pd in out_ports:
             port, width = extract(pd)
             assert port not in self._inPorts, "端口 {} 已定义".format(port)
             assert port not in self._outPorts, "端口 {} 已定义".format(port)
-            self._outPorts[port] = Port(PortType.OUT, width, self)
+            if width >= 0:
+                assert width > 0, "端口 {} 宽度为 0".format(port)
+                self._outPorts[port] = Port(PortType.OUT, width, False, self)
+            else:
+                assert width < -1, "端口 {} 宽度为 1，无法定义有符号整数".format(port)
+                self._outPorts[port] = Port(PortType.OUT, -width, True, self)
 
     def __getitem__(self, port: str) -> Port:
         if port in self._inPorts:

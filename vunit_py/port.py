@@ -23,17 +23,19 @@ class EventClockContainerProtocol(Protocol):
 class Port(object):
     portType: PortType
     width: int
+    signed: bool
     _clk: str
     _initValue: Value
     _input: List[Value]
     _output: List[Value]
     __parent: EventClockContainerProtocol
 
-    def __init__(self, portType: PortType, width: int,
+    def __init__(self, portType: PortType, width: int, signed: bool,
                  parent: EventClockContainerProtocol):
         assert width > 0, "端口宽度不为正：{}".format(width)
         self.portType = portType
         self.width = width
+        self.signed = signed
         self.__parent = parent
         if portType == PortType.IN:
             self._input = []
@@ -58,7 +60,7 @@ class Port(object):
                         len(input) * 8, self.width)
             return Value.fromBytes(input, len(input) * 8).slice(self.width)
         elif isinstance(input, dict):
-            vs = sorted([(t, Value.fromAny(x, self.width))
+            vs = sorted([(t, Value.fromAny(x, self.width, self.signed))
                          for t, x in input.items()],
                         key=lambda x: x[0])
             if self.portType == PortType.OUT:
@@ -87,12 +89,12 @@ class Port(object):
                     lastV = v
             return values
         else:
-            return [Value.fromAny(x, self.width) for x in input]
+            return [Value.fromAny(x, self.width, self.signed) for x in input]
 
     def __floordiv__(self, input: ValueDef) -> "Port":
         assert self.portType == PortType.IN, "输出端口不可定义初始值"
         assert not self._input, "定义输入序列后，不可定义初始值"
-        self._initValue = Value.fromAny(input, self.width)
+        self._initValue = Value.fromAny(input, self.width, self.signed)
         return self
 
     def __lshift__(self, input: SignalDef) -> "Port":

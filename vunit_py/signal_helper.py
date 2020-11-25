@@ -25,10 +25,11 @@ class SignalHelper(object):
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
+            s = self.__test[p].signed
             if p in self.__initValues:
                 logging.warning("输入端口 {} 已定义初始值：{}".format(
                     p, str(self.__initValues[p])))
-            self.__initValues[p] = Value.fromAny(v, w)
+            self.__initValues[p] = Value.fromAny(v, w, s)
         return self
 
     def input(self, ts: int, values: Dict[str, ValueDef]) -> "SignalHelper":
@@ -36,10 +37,11 @@ class SignalHelper(object):
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
+            s = self.__test[p].signed
             if ts in self.__inPorts[p]:
                 logging.warning("输入端口 {} 在 {} 已定义输入：{}".format(
                     p, ts, str(self.__inPorts[p][ts])))
-            self.__inPorts[p][ts] = Value.fromAny(v, w)
+            self.__inPorts[p][ts] = Value.fromAny(v, w, s)
         return self
 
     def output(self, ts: int, values: Dict[str, ValueDef]) -> "SignalHelper":
@@ -47,10 +49,11 @@ class SignalHelper(object):
         for p, v in values.items():
             assert p in self.__outPorts, "输出端口未定义：{}".format(p)
             w = self.__test[p].width
+            s = self.__test[p].signed
             if ts in self.__outPorts[p]:
                 logging.warning("输出端口 {} 在 {} 已定义输入：{}".format(
                     p, ts, str(self.__outPorts[p][ts])))
-            self.__outPorts[p][ts] = Value.fromAny(v, w)
+            self.__outPorts[p][ts] = Value.fromAny(v, w, s)
         return self
 
     def fillOutput(self, port: str, setup_time: int) -> "SignalHelper":
@@ -119,10 +122,11 @@ class CycleHelper(object):
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
+            s = self.__test[p].signed
             if p in self.__initValues:
                 logging.warning("输入端口 {} 已定义初始值：{}".format(
                     p, str(self.__initValues[p])))
-            self.__initValues[p] = Value.fromAny(v, w)
+            self.__initValues[p] = Value.fromAny(v, w, s)
         return self
 
     def add(self, port: str, interval: int, offset: int,
@@ -150,9 +154,10 @@ class CycleHelper(object):
             self.__cycles[port].ts), "数据点和时间点数量不匹配：{} != {}".format(
                 len(values), len(self.__cycles[port].ts))
         w = self.__test[port].width
+        s = self.__test[port].signed
         if cycle in self.__inPorts[port]:
             logging.warning("输入端口 {} 在 {} 已定义输入".format(port, cycle))
-        self.__inPorts[port][cycle] = [Value.fromAny(v, w) for v in values]
+        self.__inPorts[port][cycle] = [Value.fromAny(v, w, s) for v in values]
         return self
 
     def output(self, port: str, cycle: int,
@@ -164,9 +169,10 @@ class CycleHelper(object):
             self.__cycles[port].ts), "数据点和时间点数量不匹配：{} != {}".format(
                 len(values), len(self.__cycles[port].ts))
         w = self.__test[port].width
+        s = self.__test[port].signed
         if cycle in self.__outPorts[port]:
             logging.warning("输出端口 {} 在 {} 已定义输入".format(port, cycle))
-        self.__outPorts[port][cycle] = [Value.fromAny(v, w) for v in values]
+        self.__outPorts[port][cycle] = [Value.fromAny(v, w, s) for v in values]
         return self
 
     def fillOutput(self, port: str, setup_time: int) -> "CycleHelper":
