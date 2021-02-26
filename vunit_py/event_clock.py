@@ -1,11 +1,11 @@
-from typing import List
+from typing import Sequence
 
 
 class EventClock(object):
-    _steps: List[int]
+    _steps: Sequence[int]
     _offset: int
 
-    def __init__(self, steps: List[int], offset: int):
+    def __init__(self, steps: Sequence[int], offset: int):
         assert all([isinstance(s, int) and s > 0
                     for s in steps]), "事件时钟步长不是正整数"
         self._steps = steps
@@ -14,7 +14,7 @@ class EventClock(object):
         else:
             self._offset = offset % -sum(self._steps)
 
-    def prelude(self) -> List[int]:
+    def prelude(self) -> Sequence[int]:
         if self._offset >= 0:
             return []
         steps = []

@@ -1,4 +1,5 @@
-from typing import Iterator, List, Union
+import typing
+from typing import Iterator, Sequence, Union
 from enum import Enum
 
 
@@ -36,9 +37,9 @@ class Logic(Enum):
 
 
 class Value(object):
-    value: List[Logic]
+    value: Sequence[Logic]
 
-    def __init__(self, value: List[Logic]):
+    def __init__(self, value: Sequence[Logic]):
         self.value = value
 
     def __len__(self) -> int:
@@ -65,12 +66,20 @@ class Value(object):
     def __iter__(self) -> Iterator[Logic]:
         return iter(self.value)
 
+    @typing.overload
     def __getitem__(self, i: int) -> Logic:
+        ...
+
+    @typing.overload
+    def __getitem__(self, i: slice) -> "Value":
+        ...
+
+    def __getitem__(self, i):
         if isinstance(i, slice):
             return Value(self.value[i])
         return self.value[i]
 
-    def slice(self, width: int) -> List["Value"]:
+    def slice(self, width: int) -> Sequence["Value"]:
         assert width > 0, "分割宽度不是正整数"
         assert len(self) % width == 0, "宽度不是倍数，无法分割：{} | {}".format(
             len(self), width)
@@ -80,7 +89,7 @@ class Value(object):
         ]
 
     @staticmethod
-    def fromBools(bs: List[bool], width: int) -> "Value":
+    def fromBools(bs: Sequence[bool], width: int) -> "Value":
         assert width > 0, "宽度不是正整数"
         assert len(bs) == width, "值的宽度不匹配：{} != {}".format(len(bs), width)
         return Value([Logic.HI if b else Logic.LO for b in bs])
@@ -127,9 +136,9 @@ class Value(object):
             return Value.fromStr(input, width)
         if isinstance(input, bytes):
             return Value.fromBytes(input, width)
-        if isinstance(input, list):
-            return Value.fromBools(input, width)
-        return Value.fromInt(input, width, signed)
+        if isinstance(input, int):
+            return Value.fromInt(input, width, signed)
+        return Value.fromBools(input, width)
 
 
-ValueDef = Union[Value, int, str, bytes, List[bool]]
+ValueDef = Union[Value, int, str, bytes, Sequence[bool]]

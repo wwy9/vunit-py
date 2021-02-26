@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Mapping, Sequence, Tuple, Union
 import os.path
 
 from vunit.verilog import VUnit
@@ -35,9 +35,9 @@ class Test(EventClockContainerProtocol):
         module_name: str,
         test_name: str,
         output_path: str,
-        in_ports: List[PortDef] = [],
-        out_ports: List[PortDef] = [],
-        parameters: Dict[str, Union[int, str]] = {},
+        in_ports: Sequence[PortDef] = [],
+        out_ports: Sequence[PortDef] = [],
+        parameters: Mapping[str, Union[int, str]] = {},
         report_all_errors: bool = False,
     ):
         self.moduleName = module_name
@@ -88,13 +88,13 @@ class Test(EventClockContainerProtocol):
 
     def addEventClock(self,
                       clk: str,
-                      steps: Union[int, List[int]],
+                      steps: Union[int, Sequence[int]],
                       offset: int = 0) -> None:
         assert clk not in self.__clocks, "事件时钟 {} 已定义".format(clk)
-        if isinstance(steps, list):
-            self.__clocks[clk] = EventClock(steps, offset)
-        else:
+        if isinstance(steps, int):
             self.__clocks[clk] = EventClock([steps], offset)
+        else:
+            self.__clocks[clk] = EventClock(steps, offset)
 
     def hasClock(self, clk: str) -> bool:
         return clk in self.__clocks
@@ -241,6 +241,7 @@ class Test(EventClockContainerProtocol):
             clk_action = ""
 
             reg_define += "integer {};\n".format(cnt_name)
+            duration = 0
 
             if clk in self.__inputs:
                 assert clk in self.__inLens
@@ -317,7 +318,7 @@ class Test(EventClockContainerProtocol):
                 clk_action += "      #{}\n{}".format(s, step_action)
             clk_gen += "    begin\n{}    end\n".format(clk_action)
 
-        for clk, ports in self.__outputs.items():
+        for clk in self.__outputs:
             data_name = "AUTOGEN_{}_output_data".format(clk)
             data_write += "    $writememb(\"{}\", {});\n".format(
                 self.prefix(True) + "_" + clk + ".out", data_name)
@@ -383,10 +384,11 @@ endmodule
 
     @staticmethod
     def run(
-            tests: List["Test"],
-            dependencies: List[Union[str, Tuple[str, Dict[str, str]]]] = [],
-            include_dirs: List[str] = [],
-            external_libraries: Dict[str, str] = {},
+            tests: Sequence["Test"],
+            dependencies: Sequence[Union[str, Tuple[str, Mapping[str,
+                                                                 str]]]] = [],
+            include_dirs: Sequence[str] = [],
+            external_libraries: Mapping[str, str] = {},
     ) -> None:
         s = set()
         for t in tests:

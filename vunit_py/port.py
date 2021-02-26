@@ -1,4 +1,4 @@
-from typing import Dict, List, Protocol, Union
+from typing import List, Mapping, Protocol, Sequence, Union
 from abc import abstractmethod
 from enum import Enum
 
@@ -11,7 +11,7 @@ class PortType(Enum):
 
 
 ValueDef = Union[Value, int, str, bytes]
-SignalDef = Union[List[ValueDef], Dict[int, ValueDef], bytes]
+SignalDef = Union[Sequence[ValueDef], Mapping[int, ValueDef], bytes]
 
 
 class EventClockContainerProtocol(Protocol):
@@ -47,7 +47,7 @@ class Port(object):
         self._clk = clk
         return self
 
-    def normalize(self, input: SignalDef) -> List[Value]:
+    def normalize(self, input: SignalDef) -> Sequence[Value]:
         if isinstance(input, bytes):
             assert (
                 self.width &

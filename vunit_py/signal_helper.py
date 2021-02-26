@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Mapping, Optional, Sequence
 import logging
 
 from .value import Value, ValueDef
@@ -21,7 +21,7 @@ class SignalHelper(object):
         for p in test._outPorts:
             self.__outPorts[p] = {}
 
-    def init(self, values: Dict[str, ValueDef]) -> "SignalHelper":
+    def init(self, values: Mapping[str, ValueDef]) -> "SignalHelper":
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
@@ -32,7 +32,7 @@ class SignalHelper(object):
             self.__initValues[p] = Value.fromAny(v, w, s)
         return self
 
-    def input(self, ts: int, values: Dict[str, ValueDef]) -> "SignalHelper":
+    def input(self, ts: int, values: Mapping[str, ValueDef]) -> "SignalHelper":
         assert ts > 0, "时钟不是正整数：{}".format(ts)
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
@@ -44,7 +44,8 @@ class SignalHelper(object):
             self.__inPorts[p][ts] = Value.fromAny(v, w, s)
         return self
 
-    def output(self, ts: int, values: Dict[str, ValueDef]) -> "SignalHelper":
+    def output(self, ts: int, values: Mapping[str,
+                                              ValueDef]) -> "SignalHelper":
         assert ts > 0, "时钟不是正整数：{}".format(ts)
         for p, v in values.items():
             assert p in self.__outPorts, "输出端口未定义：{}".format(p)
@@ -90,10 +91,10 @@ class SignalHelper(object):
 class Cycle:
     interval: int
     offset: int
-    ts: List[int]
+    ts: Sequence[int]
     setup: Optional[int]
 
-    def __init__(self, interval: int, offset: int, ts: List[int]):
+    def __init__(self, interval: int, offset: int, ts: Sequence[int]):
         self.interval = interval
         self.offset = offset
         self.ts = ts
@@ -118,7 +119,7 @@ class CycleHelper(object):
         for p in test._outPorts:
             self.__outPorts[p] = {}
 
-    def init(self, values: Dict[str, ValueDef]) -> "CycleHelper":
+    def init(self, values: Mapping[str, ValueDef]) -> "CycleHelper":
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
@@ -130,7 +131,7 @@ class CycleHelper(object):
         return self
 
     def add(self, port: str, interval: int, offset: int,
-            ts: List[int]) -> "CycleHelper":
+            ts: Sequence[int]) -> "CycleHelper":
         assert (port in self.__inPorts
                 or port in self.__outPorts), "端口未定义：{}".format(port)
         assert ts, "时间点为空：{}".format(port)
@@ -146,7 +147,7 @@ class CycleHelper(object):
         return self
 
     def input(self, port: str, cycle: int,
-              values: List[ValueDef]) -> "CycleHelper":
+              values: Sequence[ValueDef]) -> "CycleHelper":
         assert cycle >= 0, "周期数不是非负整数：{}".format(cycle)
         assert port in self.__inPorts, "输入端口未定义：{}".format(port)
         assert port in self.__cycles, "输入端口未定义周期：{}".format(port)
@@ -161,7 +162,7 @@ class CycleHelper(object):
         return self
 
     def output(self, port: str, cycle: int,
-               values: List[ValueDef]) -> "CycleHelper":
+               values: Sequence[ValueDef]) -> "CycleHelper":
         assert cycle >= 0, "周期数不是非负整数：{}".format(cycle)
         assert port in self.__outPorts, "输出端口未定义：{}".format(port)
         assert port in self.__cycles, "输出端口未定义周期：{}".format(port)
