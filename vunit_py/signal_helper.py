@@ -6,6 +6,9 @@ from .test import Test
 
 
 class SignalHelper(object):
+    """
+    信号发生器, 时钟无固定周期
+    """
     __test: Test
     __inPorts: Dict[str, Dict[int, Value]]
     __outPorts: Dict[str, Dict[int, Value]]
@@ -16,12 +19,15 @@ class SignalHelper(object):
         self.__inPorts = {}
         self.__outPorts = {}
         self.__initValues = {}
-        for p in test._inPorts:
+        for p in test.inPorts:
             self.__inPorts[p] = {}
-        for p in test._outPorts:
+        for p in test.outPorts:
             self.__outPorts[p] = {}
 
     def init(self, values: Mapping[str, ValueDef]) -> "SignalHelper":
+        """
+        设定输入初始值
+        """
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
@@ -33,6 +39,9 @@ class SignalHelper(object):
         return self
 
     def input(self, ts: int, values: Mapping[str, ValueDef]) -> "SignalHelper":
+        """
+        为某一时间点添加输入
+        """
         assert ts > 0, "时钟不是正整数：{}".format(ts)
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
@@ -46,6 +55,9 @@ class SignalHelper(object):
 
     def output(self, ts: int, values: Mapping[str,
                                               ValueDef]) -> "SignalHelper":
+        """
+        为某一时间点添加输出
+        """
         assert ts > 0, "时钟不是正整数：{}".format(ts)
         for p, v in values.items():
             assert p in self.__outPorts, "输出端口未定义：{}".format(p)
@@ -58,6 +70,9 @@ class SignalHelper(object):
         return self
 
     def fillOutput(self, port: str, setup_time: int) -> "SignalHelper":
+        """
+        填充输出
+        """
         assert setup_time > 0, "设置时间不是正整数：{}".format(setup_time)
         assert port in self.__outPorts, "输出端口未定义：{}".format(port)
         p = self.__outPorts[port]
@@ -70,6 +85,9 @@ class SignalHelper(object):
         return self
 
     def attach(self) -> None:
+        """
+        将输入/输出添加至测试单元
+        """
         for p, v in self.__initValues.items():
             self.__test[p] // v
         for p, vs in self.__inPorts.items():
@@ -102,6 +120,9 @@ class Cycle:
 
 
 class CycleHelper(object):
+    """
+    信号发生器, 时钟有固定周期
+    """
     __test: Test
     __cycles: Dict[str, Cycle]
     __inPorts: Dict[str, Dict[int, List[Value]]]
@@ -114,12 +135,15 @@ class CycleHelper(object):
         self.__inPorts = {}
         self.__outPorts = {}
         self.__initValues = {}
-        for p in test._inPorts:
+        for p in test.inPorts:
             self.__inPorts[p] = {}
-        for p in test._outPorts:
+        for p in test.outPorts:
             self.__outPorts[p] = {}
 
     def init(self, values: Mapping[str, ValueDef]) -> "CycleHelper":
+        """
+        设定输入初始值
+        """
         for p, v in values.items():
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
@@ -132,6 +156,9 @@ class CycleHelper(object):
 
     def add(self, port: str, interval: int, offset: int,
             ts: Sequence[int]) -> "CycleHelper":
+        """
+        为端口添加时钟周期
+        """
         assert (port in self.__inPorts
                 or port in self.__outPorts), "端口未定义：{}".format(port)
         assert ts, "时间点为空：{}".format(port)
@@ -148,6 +175,9 @@ class CycleHelper(object):
 
     def input(self, port: str, cycle: int,
               values: Sequence[ValueDef]) -> "CycleHelper":
+        """
+        为端口的某一周期添加输入
+        """
         assert cycle >= 0, "周期数不是非负整数：{}".format(cycle)
         assert port in self.__inPorts, "输入端口未定义：{}".format(port)
         assert port in self.__cycles, "输入端口未定义周期：{}".format(port)
@@ -163,6 +193,9 @@ class CycleHelper(object):
 
     def output(self, port: str, cycle: int,
                values: Sequence[ValueDef]) -> "CycleHelper":
+        """
+        为端口的某一周期添加输出
+        """
         assert cycle >= 0, "周期数不是非负整数：{}".format(cycle)
         assert port in self.__outPorts, "输出端口未定义：{}".format(port)
         assert port in self.__cycles, "输出端口未定义周期：{}".format(port)
@@ -177,6 +210,9 @@ class CycleHelper(object):
         return self
 
     def fillOutput(self, port: str, setup_time: int) -> "CycleHelper":
+        """
+        填充输出
+        """
         assert setup_time > 0, "设置时间不是正整数：{}".format(setup_time)
         assert port in self.__outPorts, "输出端口未定义：{}".format(port)
         assert port in self.__cycles, "输出端口未定义周期：{}".format(port)
@@ -184,6 +220,9 @@ class CycleHelper(object):
         return self
 
     def attach(self) -> None:
+        """
+        将输入/输出添加至测试单元
+        """
         for p, v in self.__initValues.items():
             self.__test[p] // v
         for p, vs in self.__inPorts.items():

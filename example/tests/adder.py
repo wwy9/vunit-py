@@ -1,5 +1,5 @@
 import os.path
-from vunit_py import Test, Value
+from vunit_py import Test
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE = os.path.dirname(TESTS)
@@ -75,8 +75,8 @@ t2["a"]**"ec" // 0 << {1: 1, 3: 0} << [1]
 t2["b"]**"ec"
 t2["b"] << "\xdf"
 # 可以把花式定义的输入信号变成数字
-a = [Value.valuesToInteger(i) for i in t2["a"]._input]
-b = [Value.valuesToInteger(i) for i in t2["b"]._input]
+a = [int(i) for i in t2["a"].input]
+b = [int(i) for i in t2["b"].input]
 sum = [ax + bx for ax, bx in zip(a, b)]
 sum[0] = sum[2] = 0
 t2["sum"]**"ec" >> ["xx"] >> sum
