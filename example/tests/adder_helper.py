@@ -1,14 +1,16 @@
 import os.path
-from vunit_py import Test, SignalHelper, CycleHelper
+from vunit_py import Test, SignalHelper, CycleHelper, ModuleParser
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
 EXAMPLE = os.path.dirname(TESTS)
 
+MODULE = ModuleParser(os.path.join(EXAMPLE, "adder.sv"), "adder")
+
 t1 = Test("adder",
           "signal_test",
           os.path.join(TESTS, "__autogen__"),
-          in_ports=["clk", "a", "b"],
-          out_ports=[("sum", 2)])
+          in_ports=MODULE.inputs,
+          out_ports=MODULE.outputs)
 sh = SignalHelper(t1)
 sh.input(1, {"a": 0, "b": 0}).input(11, {"b": 1})
 sh.output(6, {"sum": 0}).output(16, {"sum": 1})
