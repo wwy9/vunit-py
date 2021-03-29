@@ -1,5 +1,4 @@
 from typing import Dict, List, Mapping, Optional, Sequence
-import logging
 
 from .value import Value, ValueDef
 from .test import Test
@@ -33,12 +32,15 @@ class SignalHelper(object):
             w = self.__test[p].width
             s = self.__test[p].signed
             if p in self.__initValues:
-                logging.warning("输入端口 {} 已定义初始值：{}".format(
+                raise ValueError("输入端口 {} 已定义初始值：{}".format(
                     p, str(self.__initValues[p])))
             self.__initValues[p] = Value.fromAny(v, w, s)
         return self
 
-    def input(self, ts: int, values: Mapping[str, ValueDef]) -> "SignalHelper":
+    def input(self,
+              ts: int,
+              values: Mapping[str, ValueDef],
+              forceUpdate: bool = False) -> "SignalHelper":
         """
         为某一时间点添加输入
         """
@@ -47,14 +49,16 @@ class SignalHelper(object):
             assert p in self.__inPorts, "输入端口未定义：{}".format(p)
             w = self.__test[p].width
             s = self.__test[p].signed
-            if ts in self.__inPorts[p]:
-                logging.warning("输入端口 {} 在 {} 已定义输入：{}".format(
+            if ts in self.__inPorts[p] and not forceUpdate:
+                raise ValueError("输入端口 {} 在 {} 已定义输入：{}".format(
                     p, ts, str(self.__inPorts[p][ts])))
             self.__inPorts[p][ts] = Value.fromAny(v, w, s)
         return self
 
-    def output(self, ts: int, values: Mapping[str,
-                                              ValueDef]) -> "SignalHelper":
+    def output(self,
+               ts: int,
+               values: Mapping[str, ValueDef],
+               forceUpdate: bool = False) -> "SignalHelper":
         """
         为某一时间点添加输出
         """
@@ -63,8 +67,8 @@ class SignalHelper(object):
             assert p in self.__outPorts, "输出端口未定义：{}".format(p)
             w = self.__test[p].width
             s = self.__test[p].signed
-            if ts in self.__outPorts[p]:
-                logging.warning("输出端口 {} 在 {} 已定义输入：{}".format(
+            if ts in self.__outPorts[p] and not forceUpdate:
+                raise ValueError("输出端口 {} 在 {} 已定义输出：{}".format(
                     p, ts, str(self.__outPorts[p][ts])))
             self.__outPorts[p][ts] = Value.fromAny(v, w, s)
         return self
@@ -149,7 +153,7 @@ class CycleHelper(object):
             w = self.__test[p].width
             s = self.__test[p].signed
             if p in self.__initValues:
-                logging.warning("输入端口 {} 已定义初始值：{}".format(
+                raise ValueError("输入端口 {} 已定义初始值：{}".format(
                     p, str(self.__initValues[p])))
             self.__initValues[p] = Value.fromAny(v, w, s)
         return self
@@ -173,8 +177,11 @@ class CycleHelper(object):
         self.__cycles[port] = Cycle(interval, off, ots)
         return self
 
-    def input(self, port: str, cycle: int,
-              values: Sequence[ValueDef]) -> "CycleHelper":
+    def input(self,
+              port: str,
+              cycle: int,
+              values: Sequence[ValueDef],
+              forceUpdate: bool = False) -> "CycleHelper":
         """
         为端口的某一周期添加输入
         """
@@ -186,13 +193,16 @@ class CycleHelper(object):
                 len(values), len(self.__cycles[port].ts))
         w = self.__test[port].width
         s = self.__test[port].signed
-        if cycle in self.__inPorts[port]:
-            logging.warning("输入端口 {} 在 {} 已定义输入".format(port, cycle))
+        if cycle in self.__inPorts[port] and not forceUpdate:
+            raise ValueError("输入端口 {} 在 {} 已定义输入".format(port, cycle))
         self.__inPorts[port][cycle] = [Value.fromAny(v, w, s) for v in values]
         return self
 
-    def output(self, port: str, cycle: int,
-               values: Sequence[ValueDef]) -> "CycleHelper":
+    def output(self,
+               port: str,
+               cycle: int,
+               values: Sequence[ValueDef],
+               forceUpdate: bool = False) -> "CycleHelper":
         """
         为端口的某一周期添加输出
         """
@@ -204,8 +214,8 @@ class CycleHelper(object):
                 len(values), len(self.__cycles[port].ts))
         w = self.__test[port].width
         s = self.__test[port].signed
-        if cycle in self.__outPorts[port]:
-            logging.warning("输出端口 {} 在 {} 已定义输入".format(port, cycle))
+        if cycle in self.__outPorts[port] and not forceUpdate:
+            raise ValueError("输出端口 {} 在 {} 已定义输出".format(port, cycle))
         self.__outPorts[port][cycle] = [Value.fromAny(v, w, s) for v in values]
         return self
 
