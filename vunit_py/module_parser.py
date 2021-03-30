@@ -5,7 +5,7 @@ from .test import PortDef
 
 MODULE_REGEX = r"module\s+(\w+)\s*\(([^)]*)\)"
 MODULE_DEF = re.compile(MODULE_REGEX, re.A | re.I)
-PORT_REGEX = r"\s*(input|output)(?:\s*(?:unsiegned|signed|reg|wire))*(?:\[\s*(\d+)(?:\s*:\s*(\d+))?\s*\])?\s*(\w+)\s*"
+PORT_REGEX = r"\s*(input|output)((?:\s+(?:unsigned|signed|reg|wire))*)(?:\[\s*(\d+)(?:\s*:\s*(\d+))?\s*\])?\s*(\w+)\s*"
 PORT_DEF = re.compile(PORT_REGEX, re.A | re.I)
 
 
@@ -31,12 +31,14 @@ class ModuleParser:
                     if not pm:
                         raise RuntimeError("cannot parse port def: " + p)
                     w: int = 1
-                    if pm.group(2) is not None and pm.group(3) is not None:
-                        w = abs(int(pm.group(2)) - int(pm.group(3))) + 1
+                    if pm.group(3) is not None and pm.group(4) is not None:
+                        w = abs(int(pm.group(3)) - int(pm.group(4))) + 1
+                    if "signed" in re.split(r"\s+", pm.group(2)):
+                        w = -w
                     if pm.group(1) == "input":
-                        self.__inputs.append((pm.group(4), w))
+                        self.__inputs.append((pm.group(5), w))
                     else:
-                        self.__outputs.append((pm.group(4), w))
+                        self.__outputs.append((pm.group(5), w))
                 break
 
     @property
