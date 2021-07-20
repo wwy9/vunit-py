@@ -1,5 +1,5 @@
 import typing
-from typing import Iterator, Sequence, Union
+from typing import Iterator, List, Sequence, Union
 from enum import Enum
 
 
@@ -46,7 +46,7 @@ class Value(object):
     """
     值, 包含多位逻辑值
     """
-    __value: Sequence[Logic]
+    __value: List[Logic]
     __signed: bool
 
     def __init__(self, value: Sequence[Logic], signed: bool):
@@ -56,7 +56,7 @@ class Value(object):
         """
         assert value, "值为空"
         assert not signed or len(value) >= 2, "有符号值少于 2 位"
-        self.__value = value
+        self.__value = list(value)
         self.__signed = signed
 
     def __str__(self) -> str:
@@ -92,6 +92,13 @@ class Value(object):
         return self.__value[i]
 
     @property
+    def value(self) -> List[Logic]:
+        """
+        以列表形式表示的值
+        """
+        return self.__value
+
+    @property
     def width(self) -> int:
         """
         值宽度
@@ -105,7 +112,7 @@ class Value(object):
         """
         return self.__signed
 
-    def slice(self, width: int, signed: bool) -> Sequence["Value"]:
+    def slice(self, width: int, signed: bool) -> List["Value"]:
         """
         width: 宽度
         signed: 新的值是否有符号
