@@ -1,5 +1,5 @@
 from typing import Dict, List, Mapping, Sequence, Tuple, Union
-import os.path
+from pathlib import Path
 
 from vunit.verilog import VUnit
 
@@ -16,7 +16,7 @@ class Test(EventClockContainerProtocol):
     """
     __moduleName: str
     __testName: str
-    __path: str
+    __path: Path
     __clocks: Dict[str, EventClock]
     __inPorts: Dict[str, Port]
     __outPorts: Dict[str, Port]
@@ -37,7 +37,7 @@ class Test(EventClockContainerProtocol):
         self,
         module_name: str,
         test_name: str,
-        output_path: str,
+        output_path: Path,
         in_ports: Sequence[PortDef] = [],
         out_ports: Sequence[PortDef] = [],
         parameters: Mapping[str, Union[int, str]] = {},
@@ -54,7 +54,7 @@ class Test(EventClockContainerProtocol):
         """
         self.__moduleName = module_name
         self.__testName = test_name
-        self.__path = os.path.abspath(output_path)
+        self.__path = output_path.absolute()
         self.__clocks = {}
         self.__inPorts = {}
         self.__outPorts = {}
@@ -215,7 +215,7 @@ class Test(EventClockContainerProtocol):
                 reg_init += "  {} = {}'b{};\n".format(input_name, start,
                                                       initValueStr)
                 reg_init += "  $readmemb(\"{}\", {});\n".format(
-                    self.__prefix(True) + "_" + clk + ".in", input_data_name)
+                    self.__genEscapedPath("_" + clk + ".in"), input_data_name)
                 step_action += "        if ({} < {})\n".format(
                     cnt_name, duration)
                 step_action += "        begin\n"
@@ -271,7 +271,7 @@ class Test(EventClockContainerProtocol):
         for clk in self.__outputs:
             data_name = "AUTOGEN_{}_output_data".format(clk)
             data_write += "    $writememb(\"{}\", {});\n".format(
-                self.__prefix(True) + "_" + clk + ".out", data_name)
+                self.__genEscapedPath("_" + clk + ".out"), data_name)
 
         for k, v in self.__parameters.items():
             param_assign += "    .{}({}),\n".format(k, v)
@@ -329,7 +329,7 @@ endmodule
            test=self.__testName,
            data_write=data_write[:-1])
 
-        with open(self.__prefix(False) + ".sv", "w") as f:
+        with open(self.__genPath(".sv"), "w") as f:
             f.write(sv)
 
     def __dump(self) -> bool:
@@ -337,7 +337,7 @@ endmodule
         生成测试数据
         """
         for clk, ports in self.__inputs.items():
-            with open(self.__prefix(False) + "_" + clk + ".in", "w") as f:
+            with open(self.__genPath("_" + clk + ".in"), "w") as f:
                 for t in range(self.__inLens[clk]):
                     for p in ports:
                         port = self.inPorts[p]
@@ -349,15 +349,18 @@ endmodule
                     f.write("\n")
         return True
 
-    def __prefix(self, escape: bool) -> str:
+    def __genPath(self, suffix: str) -> Path:
         """
         生成文件前缀
         """
-        p = os.path.join(self.__path,
-                         "tb_" + self.__moduleName + "_" + self.__testName)
-        if escape:
-            return p.replace("\\", "\\\\")
-        return p
+        return self.__path / ("tb_" + self.__moduleName + "_" +
+                              self.__testName + suffix)
+
+    def __genEscapedPath(self, suffix: str) -> str:
+        """
+        生成文件前缀
+        """
+        return str(self.__genPath(suffix)).replace("\\", "\\\\")
 
     # 此函数不能有类型，否则 VUnit 不工作
     def __check(self):
@@ -395,11 +398,11 @@ endmodule
         for clk, ports in self.__outputs.items():
             values = []
             width = sum([self.outPorts[p].width for p in ports])
-            with open(self.__prefix(False) + "_" + clk + ".out", "r") as f:
+            with open(self.__genPath("_" + clk + ".out"), "r") as f:
                 lines = f.readlines()
                 values = [
-                    Value.fromStr(l.strip(), width, False) for l in lines
-                    if l[0] != "/"
+                    Value.fromStr(line.strip(), width, False) for line in lines
+                    if line[0] != "/"
                 ]
             assert len(values) >= self.__outLens[clk], "文件长度不足"
             for t in range(self.__outLens[clk]):
@@ -430,11 +433,11 @@ endmodule
 
     @staticmethod
     def run(
-            tests: Sequence["Test"],
-            dependencies: Sequence[Union[str, Tuple[str, Mapping[str,
-                                                                 str]]]] = [],
-            include_dirs: Sequence[str] = [],
-            external_libraries: Mapping[str, str] = {},
+        tests: Sequence["Test"],
+        dependencies: Sequence[Union[Path, Tuple[Path, Mapping[str,
+                                                               str]]]] = [],
+        include_dirs: Sequence[Path] = [],
+        external_libraries: Mapping[str, Path] = {},
     ) -> None:
         s = set()
         for t in tests:
@@ -446,7 +449,7 @@ endmodule
             vu.add_external_library(name, path)
         dep = vu.add_library("dep")
         for d in dependencies:
-            if isinstance(d, str):
+            if isinstance(d, Path):
                 dep.add_source_file(d,
                                     include_dirs=include_dirs,
                                     no_parse=True)
@@ -457,11 +460,11 @@ endmodule
                                     defines=d[1])
         lib = vu.add_library("lib")
         for t in tests:
+            t.__path.mkdir(parents=True, exist_ok=True)
             t.__gen()
             t.__write()
             t.__dump()
-            lib.add_source_file(t.__prefix(False) + ".sv",
-                                include_dirs=include_dirs)
+            lib.add_source_file(t.__genPath(".sv"), include_dirs=include_dirs)
         for t in tests:
             lib.test_bench("tb_" + t.__moduleName + "_" +
                            t.__testName).set_post_check(t.__check)

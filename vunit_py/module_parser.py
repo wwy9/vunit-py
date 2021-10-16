@@ -1,4 +1,5 @@
 from typing import List, Sequence
+from pathlib import Path
 import re
 
 from .test import PortDef
@@ -13,7 +14,7 @@ class ModuleParser:
     __inputs: List[PortDef]
     __outputs: List[PortDef]
 
-    def __init__(self, file: str, name: str) -> None:
+    def __init__(self, file: Path, name: str) -> None:
         self.__inputs = []
         self.__outputs = []
         with open(file, "r") as f:
