@@ -72,7 +72,9 @@ class Value(object):
         for v in self.__value:
             res <<= 1
             res |= 1 if v == Logic.HI else 0
-        return res if not self.__signed else res - (1 << len(self.__value))
+        if self.__signed and self.__value[0] == Logic.HI:
+            return res - (1 << len(self.__value))
+        return res
 
     def __iter__(self) -> Iterator[Logic]:
         return iter(self.__value)
