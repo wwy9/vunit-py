@@ -367,6 +367,7 @@ endmodule
         """
         读取并检查输出
         """
+
         def diffMsg(p: str, t: int, ts: int, value: Value,
                     expected: Value) -> str:
             msg = "{p} @{ts} ({t}x) 期望值：\n".format(p=p, ts=ts, t=t)
@@ -436,6 +437,7 @@ endmodule
         tests: Sequence["Test"],
         dependencies: Sequence[Union[Path, Tuple[Path, Mapping[str,
                                                                str]]]] = [],
+        auto_dependency: bool = False,
         include_dirs: Sequence[Path] = [],
         external_libraries: Mapping[str, Path] = {},
     ) -> None:
@@ -448,16 +450,21 @@ endmodule
         for name, path in external_libraries.items():
             vu.add_external_library(name, path)
         dep = vu.add_library("dep")
+        lastF = None
         for d in dependencies:
             if isinstance(d, Path):
-                dep.add_source_file(d,
-                                    include_dirs=include_dirs,
-                                    no_parse=True)
+                f = dep.add_source_file(d,
+                                        include_dirs=include_dirs,
+                                        no_parse=not auto_dependency)
             else:
-                dep.add_source_file(d[0],
-                                    include_dirs=include_dirs,
-                                    no_parse=True,
-                                    defines=d[1])
+                f = dep.add_source_file(d[0],
+                                        include_dirs=include_dirs,
+                                        no_parse=not auto_dependency,
+                                        defines=d[1])
+            if not auto_dependency:
+                if lastF is not None:
+                    f.add_dependency_on(lastF)
+                lastF = f
         lib = vu.add_library("lib")
         for t in tests:
             t.__path.mkdir(parents=True, exist_ok=True)
