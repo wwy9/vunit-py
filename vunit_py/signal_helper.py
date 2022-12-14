@@ -80,6 +80,8 @@ class SignalHelper(object):
         assert setup_time > 0, "设置时间不是正整数：{}".format(setup_time)
         assert port in self.__outPorts, "输出端口未定义：{}".format(port)
         p = self.__outPorts[port]
+        if not p:
+            return self
         tss = sorted(p)
         lastTs = tss[0]
         for ts in tss[1:]:
