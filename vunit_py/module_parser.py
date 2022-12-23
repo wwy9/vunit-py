@@ -4,7 +4,7 @@ import re
 
 from .test import PortDef
 
-MODULE_REGEX = r"module\s+(\w+)\s*\(([^)]*)\)"
+MODULE_REGEX = r"module\s+(\w+)\s*(?:#\([^)]*\))?\s*\(([^)]*)\)"
 MODULE_DEF = re.compile(MODULE_REGEX, re.A | re.I)
 PORT_REGEX = r"\s*(input|output)((?:\s+(?:unsigned|signed|reg|wire))*)\s*(?:\[\s*(\d+)(?:\s*:\s*(\d+))?\s*\])?\s*(\w+)\s*"
 PORT_DEF = re.compile(PORT_REGEX, re.A | re.I)
