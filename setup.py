@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf8") as fh:
 
 setuptools.setup(
     name="vunit-py",  # Replace with your own username
-    version="0.0.1",
+    version="0.0.2",
     author="Weiyi Wu",
     author_email="w1w2y3@gmail.com",
     description="vunit-py generate testbench written in python for VUnit",
@@ -27,6 +27,5 @@ setuptools.setup(
         "Typing :: Typed",
     ],
     python_requires='>=3.6',
-    install_requires=["vunit_hdl"],
-    requires=["vunit_hdl"],
+    install_requires=["vunit_hdl>=4.7.0"],
 )

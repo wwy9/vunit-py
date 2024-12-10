@@ -1,7 +1,7 @@
 from typing import Dict, List, Mapping, Sequence, Tuple, Union
 from pathlib import Path
 
-from vunit.verilog import VUnit
+from vunit import VUnit
 
 from .event_clock import EventClock
 from .value import Logic, Value
@@ -447,6 +447,7 @@ endmodule
             assert (t.__moduleName, t.__testName) not in s, msg
             s.add((t.__moduleName, t.__testName))
         vu = VUnit.from_argv()
+        vu.add_verilog_builtins()
         for name, path in external_libraries.items():
             vu.add_external_library(name, path)
         dep = vu.add_library("dep")
