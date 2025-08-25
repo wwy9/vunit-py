@@ -1,3 +1,27 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+[project]
+name = "vunit-py"
+version = "0.0.2"
+dependencies = ["vunit_hdl>=4.7.0"]
+requires-python = ">= 3.6"
+authors = [{name = "Weiyi Wu", email = "w1w2y3@gmail.com"}]
+description = "Generating testbench written in python for VUnit"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: Chinese (Simplified)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Typing :: Typed", 
+]
+[project.urls]
+Homepage = "https://github.com/wwy9/vunit-py"
